@@ -226,7 +226,7 @@ $('btnEnviar').addEventListener('click', async () => {
       body: JSON.stringify({
         action: 'agregar',
         nombre: miNombre,
-        canciones: seleccion.map(s => ({ t: s.t, a: s.a }))
+        canciones: seleccion.map(s => ({ t: s.t, a: s.a, c: s.c }))
       })
     });
     const data = await resp.json();
