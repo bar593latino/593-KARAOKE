@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Cancionero Karaoke</title>
 <style>
   :root{
@@ -63,6 +66,9 @@
   .pos{font-size:2rem;font-weight:800}
   .step{display:none}
   .step.active{display:block}
+  .btn-secondary{background:transparent;border:1.5px solid var(--accent2);color:var(--accent);margin-top:14px;box-shadow:none}
+  .btn-secondary:hover{background:rgba(212,175,55,.1)}
+  .btn-reset{display:block;width:100%;background:none;border:none;color:var(--muted);text-decoration:underline;font-weight:400;font-size:.8rem;padding:14px 0 0;margin:0}
 </style>
 </head>
 <body>
@@ -94,6 +100,7 @@
       </div>
       <div class="list" id="lista"></div>
     </div>
+    <a class="selected btn-secondary" href="cancionero.pdf" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">📖 Ver lista completa (PDF)</a>
   </div>
 
   <!-- Paso 3: en cola -->
@@ -107,6 +114,7 @@
       <div id="misCanciones"></div>
     </div>
     <button class="selected hidden" id="btnOtraVez">🎤 Pedir otra canción</button>
+    <button class="btn-reset" id="btnReiniciar">¿Problemas para ver tu turno? Reiniciar</button>
   </div>
 
 </div>
@@ -256,6 +264,7 @@ function renderMisCanciones(){
 }
 
 let pollingTimer = null;
+let fallosSeguidos = 0;
 
 function iniciarPolling(){
   actualizarEstado();
@@ -263,7 +272,7 @@ function iniciarPolling(){
   pollingTimer = setInterval(actualizarEstado, 5000);
 }
 
-$('btnOtraVez').addEventListener('click', () => {
+function resetSolicitud(){
   if (pollingTimer) clearInterval(pollingTimer);
   localStorage.removeItem('karaoke_id');
   miId = null;
@@ -274,13 +283,18 @@ $('btnOtraVez').addEventListener('click', () => {
   renderPick();
   renderLista('');
   showStep(2);
-});
+}
+
+$('btnOtraVez').addEventListener('click', resetSolicitud);
+// Siempre visible en el paso 3: por si la conexion falla, el cliente nunca queda atrapado
+$('btnReiniciar').addEventListener('click', resetSolicitud);
 
 async function actualizarEstado(){
   try {
     const resp = await fetch(CONFIG.API_URL);
     const data = await resp.json();
     if (!data.ok) return;
+    fallosSeguidos = 0;
     const mia = data.cola.find(r => r.ID === miId);
     const banner = $('banner');
     const btnOtra = $('btnOtraVez');
@@ -308,7 +322,15 @@ async function actualizarEstado(){
       banner.className = 'banner espera';
       banner.querySelector('div').textContent = 'Tu posición en la cola:';
     }
-  } catch(e) {}
+  } catch(e) {
+    fallosSeguidos++;
+    if (fallosSeguidos >= 2) {
+      const banner = $('banner');
+      $('posicion').textContent = '⚠️';
+      banner.className = 'banner espera';
+      banner.querySelector('div').textContent = 'Sin conexión. Reintentando...';
+    }
+  }
 }
 </script>
 </body>
