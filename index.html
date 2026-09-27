@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Cancionero Karaoke</title>
 <style>
   :root{
@@ -66,11 +63,6 @@
   .pos{font-size:2rem;font-weight:800}
   .step{display:none}
   .step.active{display:block}
-  .btn-secondary{background:transparent;border:1.5px solid var(--accent2);color:var(--accent);margin-top:14px;box-shadow:none}
-  .btn-secondary:hover{background:rgba(212,175,55,.1)}
-  .btn-reset{display:block;width:100%;background:none;border:none;color:var(--muted);text-decoration:underline;font-weight:400;font-size:.8rem;padding:14px 0 0;margin:0}
-  .firma{text-align:center;margin-top:26px;font-size:.68rem;letter-spacing:2px;color:#6b5c33;font-style:italic;text-transform:uppercase}
-  .firma span{color:var(--accent2);font-style:normal;font-weight:600}
 </style>
 </head>
 <body>
@@ -102,7 +94,6 @@
       </div>
       <div class="list" id="lista"></div>
     </div>
-    <a class="selected btn-secondary" href="cancionero.pdf" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">📖 Ver lista completa (PDF)</a>
   </div>
 
   <!-- Paso 3: en cola -->
@@ -116,9 +107,8 @@
       <div id="misCanciones"></div>
     </div>
     <button class="selected hidden" id="btnOtraVez">🎤 Pedir otra canción</button>
-    
-  </div>
 
+  </div>
   <div class="firma">Designed by <span>BECK</span></div>
 </div>
 
@@ -133,8 +123,6 @@ const CATALOGO = [{"c":"1","t":"AMIGO","a":"ROBERTO CARLOS","g":"BALADA"},{"c":"
 let seleccion = [];
 let miId = localStorage.getItem('karaoke_id') || null;
 let miNombre = localStorage.getItem('karaoke_nombre') || '';
-let pollingTimer = null;
-let fallosSeguidos = 0;
 
 const $ = (id) => document.getElementById(id);
 
@@ -268,13 +256,15 @@ function renderMisCanciones(){
   ).join('');
 }
 
+let pollingTimer = null;
+
 function iniciarPolling(){
   actualizarEstado();
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(actualizarEstado, 5000);
 }
 
-function resetSolicitud(){
+$('btnOtraVez').addEventListener('click', () => {
   if (pollingTimer) clearInterval(pollingTimer);
   localStorage.removeItem('karaoke_id');
   miId = null;
@@ -285,22 +275,16 @@ function resetSolicitud(){
   renderPick();
   renderLista('');
   showStep(2);
-}
-
-$('btnOtraVez').addEventListener('click', resetSolicitud);
-// Siempre visible en el paso 3: por si la conexion falla, el cliente nunca queda atrapado
-$('btnReiniciar').addEventListener('click', resetSolicitud);
+});
 
 async function actualizarEstado(){
   try {
     const resp = await fetch(CONFIG.API_URL);
     const data = await resp.json();
     if (!data.ok) return;
-    fallosSeguidos = 0;
     const mia = data.cola.find(r => r.ID === miId);
     const banner = $('banner');
     const btnOtra = $('btnOtraVez');
-    const btnReini = $('btnReiniciar');
 
     if (!mia || mia.Estado === 'Completado') {
       // Termino su turno (o no se encontro el registro): liberar la pantalla
@@ -309,12 +293,10 @@ async function actualizarEstado(){
       banner.className = 'banner fin';
       banner.querySelector('div').textContent = '¡Gracias por cantar!';
       btnOtra.classList.remove('hidden');
-      btnReini.classList.add('hidden'); // ya tiene la opcion de pedir otra vez
       return;
     }
 
     btnOtra.classList.add('hidden');
-    btnReini.classList.add('hidden'); // activo en la cola: ocultar para evitar dobles solicitudes
     const activos = data.cola.filter(r => r.Estado !== 'Completado');
     const idx = activos.findIndex(r => r.ID === miId);
 
@@ -327,16 +309,7 @@ async function actualizarEstado(){
       banner.className = 'banner espera';
       banner.querySelector('div').textContent = 'Tu posición en la cola:';
     }
-  } catch(e) {
-    fallosSeguidos++;
-    if (fallosSeguidos >= 2) {
-      const banner = $('banner');
-      $('posicion').textContent = '⚠️';
-      banner.className = 'banner espera';
-      banner.querySelector('div').textContent = 'Sin conexión. Reintentando...';
-      $('btnReiniciar').classList.remove('hidden'); // fallo repetido: dar salida
-    }
-  }
+  } catch(e) {}
 }
 </script>
 </body>
