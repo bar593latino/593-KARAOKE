@@ -102,6 +102,7 @@
       </div>
       <div class="list" id="lista"></div>
     </div>
+    <a class="selected btn-secondary" href="cancionero.pdf" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">📖 Ver lista completa (PDF)</a>
   </div>
 
   <!-- Paso 3: en cola -->
@@ -115,8 +116,9 @@
       <div id="misCanciones"></div>
     </div>
     <button class="selected hidden" id="btnOtraVez">🎤 Pedir otra canción</button>
-
+    
   </div>
+
   <div class="firma">Designed by <span>BECK</span></div>
 </div>
 
@@ -131,6 +133,8 @@ const CATALOGO = [{"c":"1","t":"AMIGO","a":"ROBERTO CARLOS","g":"BALADA"},{"c":"
 let seleccion = [];
 let miId = localStorage.getItem('karaoke_id') || null;
 let miNombre = localStorage.getItem('karaoke_nombre') || '';
+let pollingTimer = null;
+let fallosSeguidos = 0;
 
 const $ = (id) => document.getElementById(id);
 
@@ -264,15 +268,13 @@ function renderMisCanciones(){
   ).join('');
 }
 
-let pollingTimer = null;
-
 function iniciarPolling(){
   actualizarEstado();
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(actualizarEstado, 5000);
 }
 
-$('btnOtraVez').addEventListener('click', () => {
+function resetSolicitud(){
   if (pollingTimer) clearInterval(pollingTimer);
   localStorage.removeItem('karaoke_id');
   miId = null;
@@ -283,16 +285,22 @@ $('btnOtraVez').addEventListener('click', () => {
   renderPick();
   renderLista('');
   showStep(2);
-});
+}
+
+$('btnOtraVez').addEventListener('click', resetSolicitud);
+// Siempre visible en el paso 3: por si la conexion falla, el cliente nunca queda atrapado
+$('btnReiniciar').addEventListener('click', resetSolicitud);
 
 async function actualizarEstado(){
   try {
     const resp = await fetch(CONFIG.API_URL);
     const data = await resp.json();
     if (!data.ok) return;
+    fallosSeguidos = 0;
     const mia = data.cola.find(r => r.ID === miId);
     const banner = $('banner');
     const btnOtra = $('btnOtraVez');
+    const btnReini = $('btnReiniciar');
 
     if (!mia || mia.Estado === 'Completado') {
       // Termino su turno (o no se encontro el registro): liberar la pantalla
@@ -301,10 +309,12 @@ async function actualizarEstado(){
       banner.className = 'banner fin';
       banner.querySelector('div').textContent = '¡Gracias por cantar!';
       btnOtra.classList.remove('hidden');
+      btnReini.classList.add('hidden'); // ya tiene la opcion de pedir otra vez
       return;
     }
 
     btnOtra.classList.add('hidden');
+    btnReini.classList.add('hidden'); // activo en la cola: ocultar para evitar dobles solicitudes
     const activos = data.cola.filter(r => r.Estado !== 'Completado');
     const idx = activos.findIndex(r => r.ID === miId);
 
@@ -317,7 +327,16 @@ async function actualizarEstado(){
       banner.className = 'banner espera';
       banner.querySelector('div').textContent = 'Tu posición en la cola:';
     }
-  } catch(e) {}
+  } catch(e) {
+    fallosSeguidos++;
+    if (fallosSeguidos >= 2) {
+      const banner = $('banner');
+      $('posicion').textContent = '⚠️';
+      banner.className = 'banner espera';
+      banner.querySelector('div').textContent = 'Sin conexión. Reintentando...';
+      $('btnReiniciar').classList.remove('hidden'); // fallo repetido: dar salida
+    }
+  }
 }
 </script>
 </body>
