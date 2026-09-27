@@ -69,6 +69,8 @@
   .btn-secondary{background:transparent;border:1.5px solid var(--accent2);color:var(--accent);margin-top:14px;box-shadow:none}
   .btn-secondary:hover{background:rgba(212,175,55,.1)}
   .btn-reset{display:block;width:100%;background:none;border:none;color:var(--muted);text-decoration:underline;font-weight:400;font-size:.8rem;padding:14px 0 0;margin:0}
+  .firma{text-align:center;margin-top:26px;font-size:.68rem;letter-spacing:2px;color:#6b5c33;font-style:italic;text-transform:uppercase}
+  .firma span{color:var(--accent2);font-style:normal;font-weight:600}
 </style>
 </head>
 <body>
@@ -116,6 +118,7 @@
     <button class="selected hidden" id="btnOtraVez">🎤 Pedir otra canción</button>
   </div>
 
+  <div class="firma">Designed by <span>BECK</span></div>
 </div>
 
 <script>
@@ -129,6 +132,8 @@ const CATALOGO = [{"c":"1","t":"AMIGO","a":"ROBERTO CARLOS","g":"BALADA"},{"c":"
 let seleccion = [];
 let miId = localStorage.getItem('karaoke_id') || null;
 let miNombre = localStorage.getItem('karaoke_nombre') || '';
+let pollingTimer = null;
+let fallosSeguidos = 0;
 
 const $ = (id) => document.getElementById(id);
 
@@ -262,9 +267,6 @@ function renderMisCanciones(){
   ).join('');
 }
 
-let pollingTimer = null;
-let fallosSeguidos = 0;
-
 function iniciarPolling(){
   actualizarEstado();
   if (pollingTimer) clearInterval(pollingTimer);
@@ -297,6 +299,7 @@ async function actualizarEstado(){
     const mia = data.cola.find(r => r.ID === miId);
     const banner = $('banner');
     const btnOtra = $('btnOtraVez');
+    const btnReini = $('btnReiniciar');
 
     if (!mia || mia.Estado === 'Completado') {
       // Termino su turno (o no se encontro el registro): liberar la pantalla
@@ -305,10 +308,12 @@ async function actualizarEstado(){
       banner.className = 'banner fin';
       banner.querySelector('div').textContent = '¡Gracias por cantar!';
       btnOtra.classList.remove('hidden');
+      btnReini.classList.add('hidden'); // ya tiene la opcion de pedir otra vez
       return;
     }
 
     btnOtra.classList.add('hidden');
+    btnReini.classList.add('hidden'); // activo en la cola: ocultar para evitar dobles solicitudes
     const activos = data.cola.filter(r => r.Estado !== 'Completado');
     const idx = activos.findIndex(r => r.ID === miId);
 
@@ -328,6 +333,7 @@ async function actualizarEstado(){
       $('posicion').textContent = '⚠️';
       banner.className = 'banner espera';
       banner.querySelector('div').textContent = 'Sin conexión. Reintentando...';
+      $('btnReiniciar').classList.remove('hidden'); // fallo repetido: dar salida
     }
   }
 }
