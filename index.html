@@ -218,6 +218,7 @@ function renderPick(){
       <div class="song-info">
         <div class="song-title">${escapeHtml(s.t)}</div>
         <div class="song-artist">${escapeHtml(s.a)}</div>
+        <div class="song-genre">#${escapeHtml(String(s.c))}</div>
       </div>
       <button class="pick-remove">Quitar</button>
     `;
@@ -264,7 +265,20 @@ $('btnEnviar').addEventListener('click', async () => {
 
 function renderMisCanciones(){
   $('misCanciones').innerHTML = seleccion.map(s =>
-    `<div class="pick-item"><div class="song-info"><div class="song-title">${escapeHtml(s.t)}</div><div class="song-artist">${escapeHtml(s.a)}</div></div></div>`
+    `<div class="pick-item"><div class="song-info"><div class="song-title">${escapeHtml(s.t)}</div><div class="song-artist">${escapeHtml(s.a)}</div><div class="song-genre">#${escapeHtml(String(s.c))}</div></div></div>`
+  ).join('');
+}
+
+// Igual que renderMisCanciones, pero a partir del registro del servidor
+// (sirve para que se vea correcto incluso si el cliente recarga la pagina)
+function renderMisCancionesDesdeServidor(mia){
+  const pares = [
+    [mia.Cancion1, mia.Artista1, mia.Codigo1],
+    [mia.Cancion2, mia.Artista2, mia.Codigo2],
+    [mia.Cancion3, mia.Artista3, mia.Codigo3]
+  ].filter(p => p[0]);
+  $('misCanciones').innerHTML = pares.map(p =>
+    `<div class="pick-item"><div class="song-info"><div class="song-title">${escapeHtml(p[0])}</div><div class="song-artist">${escapeHtml(p[1])}</div><div class="song-genre">#${escapeHtml(String(p[2]||''))}</div></div></div>`
   ).join('');
 }
 
@@ -301,6 +315,7 @@ async function actualizarEstado(){
     const banner = $('banner');
     const btnOtra = $('btnOtraVez');
     const btnReini = $('btnReiniciar');
+    if (mia) renderMisCancionesDesdeServidor(mia);
 
     if (!mia || mia.Estado === 'Completado') {
       // Termino su turno (o no se encontro el registro): liberar la pantalla
