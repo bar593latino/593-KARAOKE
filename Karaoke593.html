@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel DJ - Cancionero Karaoke</title>
+<style>
+  :root{
+    --bg:#000; --card:#151008; --accent:#FBF5B7; --accent2:#B38728;
+    --text:#f5efe0; --muted:#c9bd9a; --ok:#22c55e; --warn:#f59e0b; --gold-text:#241a00;
+    --cantando-bg:#3a2a06; --cantando-border:#f5c542;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#000;color:var(--text)}
+  header{padding:20px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #4a390f}
+  header h1{margin:0;font-size:1.3rem;background:linear-gradient(90deg,var(--accent2),var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .badge{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--gold-text);padding:6px 14px;border-radius:20px;font-size:.85rem;font-weight:700}
+  .wrap{max-width:920px;margin:0 auto;padding:20px}
+  .row{background:var(--card);border:1px solid #3a2f16;border-radius:14px;padding:16px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start;transition:background .2s,border-color .2s}
+  .row.top{border-color:var(--ok)}
+  .row.cantando{background:var(--cantando-bg);border:2px solid var(--cantando-border);box-shadow:0 0 16px rgba(245,197,66,.3)}
+  .num{font-size:1.4rem;font-weight:800;color:var(--muted);min-width:34px}
+  .row.top .num{color:var(--ok)}
+  .row.cantando .num{color:var(--cantando-border)}
+  .info{flex:1}
+  .nombre{font-weight:700;font-size:1.05rem}
+  .canciones{margin-top:6px;font-size:.9rem;color:var(--muted)}
+  .canciones div{padding:3px 0;display:flex;align-items:center;gap:8px}
+  .codigo{background:#2a2010;color:var(--accent);font-weight:800;font-size:.78rem;padding:2px 8px;border-radius:6px;min-width:44px;text-align:center;border:1px solid #4a390f}
+  .estado-tag{display:inline-block;padding:3px 10px;border-radius:8px;font-size:.75rem;font-weight:600;margin-top:6px}
+  .estado-en-cola{background:#3a3220;color:var(--muted)}
+  .estado-cantando{background:var(--warn);color:#3a1f00}
+  .estado-completado{background:#241c40;color:var(--muted)}
+  .acciones{display:flex;flex-direction:column;gap:6px}
+  button{cursor:pointer;border:none;border-radius:8px;padding:8px 12px;font-size:.85rem;font-weight:700}
+  .b-cantando{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--gold-text)}
+  .b-completado{background:var(--ok);color:#04240f}
+  .b-mover{background:#3a2f1a;color:var(--text)}
+  .b-eliminar{background:#5c2f1a;color:#fff}
+  .empty{text-align:center;color:var(--muted);padding:60px 20px}
+  .filtro{margin-bottom:14px}
+  .filtro button{background:#241c0f;color:var(--muted);margin-right:6px}
+  .filtro button.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--gold-text)}
+  .firma{text-align:center;margin-top:26px;font-size:.68rem;letter-spacing:2px;color:#6b5c33;font-style:italic;text-transform:uppercase}
+  .firma span{color:var(--accent);font-style:normal;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎧 Panel del DJ</h1>
+  <span class="badge" id="totalBadge">0 en cola</span>
+</header>
+<div class="wrap">
+  <div class="filtro">
+    <button class="active" data-f="activos">Activos</button>
+    <button data-f="todos">Todos</button>
+  </div>
+  <div id="lista"></div>
+  <div class="firma">Designed by <span>BECK</span></div>
+</div>
+
+<script>
+const CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbxET9NcuB9AGfbjZNb9oV6ZPA3439jjDCKljHE380Yy9xxWwlJ9pgHyiYXfCD01rZJhkw/exec" };
+let filtro = 'activos';
+let cache = [];
+
+document.querySelectorAll('.filtro button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filtro button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    filtro = b.dataset.f;
+    render();
+  });
+});
+
+let ultimaFirma = '';
+
+async function cargar(){
+  try {
+    const resp = await fetch(CONFIG.API_URL);
+    const data = await resp.json();
+    if (!data.ok) return;
+    // Evita repintar todo si nada cambio desde el servidor (menos parpadeo)
+    const firma = JSON.stringify(data.cola);
+    if (firma === ultimaFirma) return;
+    ultimaFirma = firma;
+    cache = data.cola;
+    render();
+  } catch(e) {}
+}
+
+function escapeHtml(str){
+  return (str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function render(){
+  const cont = document.getElementById('lista');
+  let items = [...cache].sort((a,b) => a.Orden - b.Orden);
+  const activos = items.filter(r => r.Estado !== 'Completado');
+  document.getElementById('totalBadge').textContent = activos.length + ' en cola';
+  if (filtro === 'activos') items = activos;
+
+  if (items.length === 0) {
+    cont.innerHTML = '<div class="empty">No hay solicitudes todavía</div>';
+    return;
+  }
+
+  cont.innerHTML = items.map((r, i) => {
+    const canciones = [
+      [r.Cancion1,r.Artista1,r.Codigo1],
+      [r.Cancion2,r.Artista2,r.Codigo2],
+      [r.Cancion3,r.Artista3,r.Codigo3]
+    ]
+      .filter(c => c[0])
+      .map(c => `<div><span class="codigo">#${escapeHtml(String(c[2]||'?'))}</span> ${escapeHtml(c[0])} — ${escapeHtml(c[1])}</div>`)
+      .join('');
+    const cantando = r.Estado === 'Cantando';
+    const isTop = filtro==='activos' && i===0 && r.Estado==='En cola';
+    const estadoClass = cantando ? 'cantando' : (isTop ? 'top' : '');
+    const posNum = r.Estado === 'Completado' ? '✓' : (i+1);
+    return `
+      <div class="row ${estadoClass}">
+        <div class="num">${posNum}</div>
+        <div class="info">
+          <div class="nombre">${escapeHtml(r.Nombre)}</div>
+          <div class="canciones">${canciones}</div>
+          <span class="estado-tag estado-${r.Estado.toLowerCase().replace(' ','-')}">${escapeHtml(r.Estado)}</span>
+        </div>
+        <div class="acciones">
+          ${r.Estado !== 'Completado' ? `
+            <button class="b-mover" onclick="mover('${r.ID}','arriba')">↑</button>
+            <button class="b-mover" onclick="mover('${r.ID}','abajo')">↓</button>
+            <button class="b-cantando" onclick="cambiarEstado('${r.ID}','Cantando')">Cantando</button>
+            <button class="b-completado" onclick="cambiarEstado('${r.ID}','Completado')">Finalizado ✓</button>
+          ` : `<button class="b-eliminar" onclick="eliminar('${r.ID}')">Eliminar</button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Actualizaciones optimistas: se pinta el cambio al instante en pantalla
+// y la llamada al servidor viaja en segundo plano, sin bloquear el clic.
+function enviar(payload){
+  fetch(CONFIG.API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
+}
+
+function cambiarEstado(id, estado){
+  const item = cache.find(r => r.ID === id);
+  if (item) { item.Estado = estado; render(); }
+  enviar({ action: 'estado', id, estado });
+}
+
+function mover(id, direccion){
+  const activos = cache.filter(r => r.Estado !== 'Completado').sort((a,b) => a.Orden - b.Orden);
+  const idx = activos.findIndex(r => r.ID === id);
+  if (idx === -1) return;
+  const target = direccion === 'arriba' ? idx - 1 : idx + 1;
+  if (target < 0 || target >= activos.length) return;
+  const a = activos[idx], b = activos[target];
+  const tmp = a.Orden; a.Orden = b.Orden; b.Orden = tmp;
+  render();
+  enviar({ action: 'mover', id, direccion });
+}
+
+function eliminar(id){
+  if (!confirm('¿Eliminar esta solicitud?')) return;
+  cache = cache.filter(r => r.ID !== id);
+  render();
+  enviar({ action: 'eliminar', id });
+}
+
+cargar();
+setInterval(cargar, 4000);
+</script>
+</body>
+</html>
