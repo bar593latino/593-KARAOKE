@@ -45,6 +45,7 @@
   .song-title{font-weight:600;font-size:.95rem}
   .song-artist{font-size:.8rem;color:var(--muted)}
   .song-genre{font-size:.7rem;color:var(--accent)}
+  .song-code{font-size:.95rem;font-weight:700;color:#ff3b3b}
   button{cursor:pointer;border:none;border-radius:10px;font-weight:700;font-size:.9rem;transition:filter .2s,transform .15s}
   button:active{transform:scale(.97)}
   .btn-add{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--gold-text);padding:8px 12px;flex-shrink:0;box-shadow:0 2px 8px rgba(179,135,40,.35)}
@@ -178,7 +179,7 @@ function renderLista(query){
       <div class="song-info">
         <div class="song-title">${escapeHtml(s.t)}</div>
         <div class="song-artist">${escapeHtml(s.a)}</div>
-        <div class="song-genre">${escapeHtml(s.g)} · #${s.c}</div>
+        <div class="song-genre">${escapeHtml(s.g)} · <span class="song-code">#${s.c}</span></div>
       </div>
       <button class="btn-add" ${yaElegida || seleccion.length>=3 ? 'disabled':''}>${yaElegida?'✓':'+'}</button>
     `;
@@ -218,7 +219,7 @@ function renderPick(){
       <div class="song-info">
         <div class="song-title">${escapeHtml(s.t)}</div>
         <div class="song-artist">${escapeHtml(s.a)}</div>
-        <div class="song-genre">#${escapeHtml(String(s.c))}</div>
+        <div class="song-code">#${escapeHtml(String(s.c))}</div>
       </div>
       <button class="pick-remove">Quitar</button>
     `;
@@ -265,7 +266,7 @@ $('btnEnviar').addEventListener('click', async () => {
 
 function renderMisCanciones(){
   $('misCanciones').innerHTML = seleccion.map(s =>
-    `<div class="pick-item"><div class="song-info"><div class="song-title">${escapeHtml(s.t)}</div><div class="song-artist">${escapeHtml(s.a)}</div><div class="song-genre">#${escapeHtml(String(s.c))}</div></div></div>`
+    `<div class="pick-item"><div class="song-info"><div class="song-title">${escapeHtml(s.t)}</div><div class="song-artist">${escapeHtml(s.a)}</div><div class="song-code">#${escapeHtml(String(s.c))}</div></div></div>`
   ).join('');
 }
 
@@ -278,7 +279,7 @@ function renderMisCancionesDesdeServidor(mia){
     [mia.Cancion3, mia.Artista3, mia.Codigo3]
   ].filter(p => p[0]);
   $('misCanciones').innerHTML = pares.map(p =>
-    `<div class="pick-item"><div class="song-info"><div class="song-title">${escapeHtml(p[0])}</div><div class="song-artist">${escapeHtml(p[1])}</div><div class="song-genre">#${escapeHtml(String(p[2]||''))}</div></div></div>`
+    `<div class="pick-item"><div class="song-info"><div class="song-title">${escapeHtml(p[0])}</div><div class="song-artist">${escapeHtml(p[1])}</div><div class="song-code">#${escapeHtml(String(p[2]||''))}</div></div></div>`
   ).join('');
 }
 
